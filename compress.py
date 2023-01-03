@@ -9,10 +9,25 @@ import numpy as np
 import boto3
 from botocore.exceptions import NoCredentialsError
 
-ACCESS_KEY = 'AKIAQD53L7J76NMPXQLN'
-SECRET_KEY = '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'
+from datetime import datetime
+
+ACCESS_KEY = 'AKIAQD53L7J7VUG77Y6L'
+SECRET_KEY = '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'
 
 
+# convert time string to datetime
+def calc_time(start_time,end_time):
+    t1 = datetime.strptime(start_time, "%H:%M:%S")
+    print('Start time:', t1.time())
+
+    t2 = datetime.strptime(end_time, "%H:%M:%S")
+    print('End time:', t2.time())
+
+    # get difference
+    delta = t2 - t1
+
+    # time difference in seconds
+    return delta
 def upload_to_aws(local_file, bucket, s3_file):
     s3 = boto3.client('s3', aws_access_key_id=ACCESS_KEY,
                       aws_secret_access_key=SECRET_KEY)
@@ -90,12 +105,22 @@ def main():
     # Load the image
     image = load_image(image_path)
     w, h, d = image.shape
+    print(image_path)
     print('Image found with width: {}, height: {}, depth: {}'.format(w, h, d))
 
     # Get the feature matrix X
     X = image.reshape((w * h, d))
     K = 40 # the number of colors in the image
+    
+    start_time = datetime.now().strftime("%H:%M:%S")
+    print("Uploading file at:", start_time)
 
+    uploaded = upload_to_aws(image_path, 'coderspace-file-uploader', 'normalImage')
+
+    end_time = datetime.now().strftime("%H:%M:%S")
+    print("Uploading finished at:", end_time)
+
+    print(f"Time Taken to upload normal image is {calc_time(start_time, end_time).total_seconds()} seconds")
     # Get colors
     print('Running K-means')
     colors, _ = find_k_means(X, K, max_iters=20)
@@ -107,10 +132,19 @@ def main():
     idx = np.array(idx, dtype=np.uint8)
     X_reconstructed = np.array(colors[idx, :] * 255, dtype=np.uint8).reshape((w, h, d))
     compressed_image = Image.fromarray(X_reconstructed)
-
+    # wc, wh, wd = compressed_image.shape
+    # print('New image has width: {}, height: {}, depth: {}'.format(wc, wh, wd))
     # Save reconstructed image to disk
     compressed_image.save('out.png')
-    uploaded = upload_to_aws('out.png', 'coderspace-file-uploader', 's3_file_name')
+    c_start_time = datetime.now().strftime("%H:%M:%S")
+    print("Uploading file at:", start_time)
+
+    upload = upload_to_aws('out.png', 'coderspace-file-uploader', 'compressed_image')
+
+    c_end_time = datetime.now().strftime("%H:%M:%S")
+    print("Uploading finished at:", end_time)
+    
+    print(f"Time Taken to upload compressed image is {calc_time(c_start_time, c_end_time).total_seconds()} seconds")
 
 
 
